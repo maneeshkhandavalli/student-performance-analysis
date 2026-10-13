@@ -1,0 +1,63 @@
+{% extends "base.html" %}{% block content %}
+{% set sel = m.models[m.selected_model] %}
+<h3 class="mb-3">Dashboard</h3>
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3"><div class="card p-3"><div class="stat">{{ total }}</div><div class="text-muted small">Students in dataset</div></div></div>
+  <div class="col-6 col-md-3"><div class="card p-3"><div class="stat">{{ sel.accuracy }}%</div><div class="text-muted small">Test accuracy ({{ m.selected_model }})</div></div></div>
+  <div class="col-6 col-md-3"><div class="card p-3"><div class="stat">{{ sel.f1 }}%</div><div class="text-muted small">Macro F1-score</div></div></div>
+  <div class="col-6 col-md-3"><div class="card p-3"><div class="stat">{{ total_preds }}</div><div class="text-muted small">Predictions made</div></div></div>
+</div>
+<div class="row g-4">
+  <div class="col-lg-7"><div class="card p-4 h-100">
+    <h6 class="card-title">Model comparison (test set)</h6><canvas id="models" height="170"></canvas></div></div>
+  <div class="col-lg-5"><div class="card p-4 h-100">
+    <h6 class="card-title">Feature importance (mean |SHAP|)</h6><canvas id="shap" height="230"></canvas></div></div>
+  <div class="col-md-6 col-lg-4"><div class="card p-4 h-100">
+    <h6 class="card-title">Class balance: before vs after SMOTE</h6><canvas id="smote" height="220"></canvas></div></div>
+  <div class="col-md-6 col-lg-4"><div class="card p-4 h-100">
+    <h6 class="card-title">Your predictions by category</h6>
+    {% if total_preds %}<canvas id="pie" height="220"></canvas>{% else %}<p class="text-muted small">No predictions yet.</p>{% endif %}</div></div>
+  <div class="col-lg-4"><div class="card p-4 h-100">
+    <h6 class="card-title">Prediction trend</h6>
+    {% if days %}<canvas id="trend" height="220"></canvas>{% else %}<p class="text-muted small">No predictions yet.</p>{% endif %}</div></div>
+  <div class="col-12"><div class="card p-4">
+    <h6 class="card-title">Detailed results</h6>
+    <div class="table-responsive"><table class="table table-sm mb-0">
+      <tr><th>Model</th><th>Accuracy</th><th>Precision</th><th>Recall</th><th>F1-score</th><th>CV F1 (5-fold)</th><th>Best parameters</th></tr>
+      {% for k, v in m.models.items() %}
+      <tr {% if k == m.selected_model %}class="table-primary"{% endif %}><td>{{ k }}{% if k == m.selected_model %} <b>(selected)</b>{% endif %}</td>
+        <td>{{ v.accuracy }}%</td><td>{{ v.precision }}%</td><td>{{ v.recall }}%</td><td>{{ v.f1 }}%</td><td>{{ v.cv_f1 }}%</td>
+        <td class="small text-muted">{{ v.best_params }}</td></tr>
+      {% endfor %}
+    </table></div>
+    <p class="small text-muted mt-2 mb-0">Split: {{ m.split.train }} train / {{ m.split.validation }} validation / {{ m.split.test }} test.
+      Model chosen by 5-fold cross-validated macro F1.</p>
+  </div></div>
+</div>
+<script>
+const C = {'Low-risk': '#2e9e5b', 'Medium-risk': '#f0ad1e', 'At-risk': '#d64545'};
+const M = {{ m.models|tojson }}, names = Object.keys(M);
+new Chart(models, { type: 'bar', data: { labels: names, datasets: [
+  { label: 'Accuracy', data: names.map(n => M[n].accuracy), backgroundColor: '#3949ab', borderRadius: 4 },
+  { label: 'F1-score', data: names.map(n => M[n].f1), backgroundColor: '#9fa8da', borderRadius: 4 }] },
+  options: { scales: { y: { min: 50, max: 100 } } } });
+const S = {{ shap_imp|tojson }};
+new Chart(shap, { type: 'bar', data: { labels: S.map(s => s[0]), datasets: [{ data: S.map(s => s[1]),
+  backgroundColor: '#3949ab', borderRadius: 4 }] }, options: { indexAxis: 'y', plugins: { legend: { display: false } } } });
+const B = {{ m.class_counts_before_smote|tojson }}, A = {{ m.class_counts_after_smote|tojson }}, cls = {{ classes|tojson }};
+new Chart(smote, { type: 'bar', data: { labels: cls, datasets: [
+  { label: 'Before', data: cls.map(c => B[c]), backgroundColor: '#c5cae9' },
+  { label: 'After SMOTE', data: cls.map(c => A[c]), backgroundColor: '#3949ab' }] } });
+{% if total_preds %}
+const H = {{ hist|tojson }};
+new Chart(pie, { type: 'doughnut', data: { labels: Object.keys(H), datasets: [{ data: Object.values(H),
+  backgroundColor: Object.keys(H).map(k => C[k]) }] } });
+{% endif %}
+{% if days %}
+const T = {{ trend|tojson }};
+new Chart(document.getElementById('trend'), { type: 'bar', data: { labels: {{ days|tojson }},
+  datasets: Object.keys(T).map(k => ({ label: k, data: T[k], backgroundColor: C[k] })) },
+  options: { scales: { x: { stacked: true }, y: { stacked: true, ticks: { precision: 0 } } } } });
+{% endif %}
+</script>
+{% endblock %}

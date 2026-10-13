@@ -1,0 +1,31 @@
+{% extends "base.html" %}{% block content %}
+<h3 class="mb-1">Batch prediction</h3>
+<p class="hero">Upload a CSV with one row per student. Required columns:
+  <code>{{ features|join(', ') }}</code>. Missing values are filled with the column median.</p>
+{% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+<form method="post" enctype="multipart/form-data" class="card p-4 mb-4">
+  <div class="row g-2 align-items-center">
+    <div class="col-md-7"><input class="form-control" type="file" name="file" accept=".csv" required></div>
+    <div class="col-md-5 d-flex gap-2">
+      <button class="btn btn-primary" type="submit">Upload &amp; predict</button>
+      <a class="btn btn-outline-secondary" href="/sample.csv">Download sample CSV</a>
+    </div>
+  </div>
+</form>
+{% if rows %}
+<div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+  <span class="fw-semibold me-2">{{ rows|length }} students:</span>
+  {% for c, n in summary.items() %}<span class="badge bg-{{ BADGE[c] }} {% if c == 'Medium-risk' %}text-dark{% endif %} fs-6">{{ c }}: {{ n }}</span>{% endfor %}
+  <a class="btn btn-sm btn-success ms-auto" href="/batch/download">Download results CSV</a>
+</div>
+<div class="card p-0"><div class="table-responsive">
+<table class="table table-sm table-hover mb-0">
+  <tr>{% if 'student_id' in rows[0] %}<th>ID</th>{% endif %}{% for f in features %}<th>{{ SHORT[f] }}</th>{% endfor %}<th>Prediction</th><th>Conf.</th></tr>
+  {% for r in rows %}
+  <tr>{% if 'student_id' in r %}<td>{{ r.student_id }}</td>{% endif %}{% for f in features %}<td>{{ r[f] }}</td>{% endfor %}
+    <td><span class="badge bg-{{ BADGE[r.prediction] }} {% if r.prediction == 'Medium-risk' %}text-dark{% endif %}">{{ r.prediction }}</span></td>
+    <td>{{ r.confidence }}%</td></tr>
+  {% endfor %}
+</table></div></div>
+{% endif %}
+{% endblock %}

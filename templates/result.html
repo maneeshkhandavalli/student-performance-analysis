@@ -1,0 +1,60 @@
+{% extends "base.html" %}{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h3 class="mb-0">Prediction report</h3>
+  <div class="no-print">
+    <button class="btn btn-outline-secondary btn-sm" onclick="window.print()">Save as PDF</button>
+    <a class="btn btn-primary btn-sm" href="/">Predict another</a>
+  </div>
+</div>
+<div class="row g-4">
+  <div class="col-md-5">
+    <div class="card p-4 h-100">
+      {% if name or roll %}<div class="text-muted small">Student</div>
+      <div class="fw-semibold mb-3">{{ name }}{% if roll %} &middot; {{ roll }}{% endif %}</div>{% endif %}
+      <div class="text-muted small">Predicted category</div>
+      <div class="result-big text-{{ BADGE[result] }}">{{ result }}</div>
+      <div class="text-muted mb-3">{{ prob[result] }}% confidence</div>
+      {% for c, p in prob.items() %}
+      <div class="small d-flex justify-content-between"><span>{{ c }}</span><span>{{ p }}%</span></div>
+      <div class="progress mb-2" style="height:8px"><div class="progress-bar bg-{{ BADGE[c] }}" style="width:{{ p }}%"></div></div>
+      {% endfor %}
+      <div class="text-muted small mt-auto pt-3">Model: {{ model_name }} &middot; {{ now }}</div>
+    </div>
+  </div>
+  <div class="col-md-7">
+    <div class="card p-4 h-100">
+      <h6 class="card-title">Why this prediction? (SHAP values)</h6>
+      <p class="small text-muted mb-2">Green bars push the student <b>towards</b> “{{ result }}”, red bars push away from it.</p>
+      <canvas id="shap" height="230"></canvas>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card p-4 h-100">
+      <h6 class="card-title">Suggestions</h6>
+      <ul class="mb-0">{% for t in tips %}<li class="mb-1">{{ t }}</li>{% endfor %}</ul>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card p-4 h-100">
+      <h6 class="card-title">Details entered</h6>
+      <table class="table table-sm mb-0">
+      {% for f, v in d.items() %}{% set extra = fields[f][3] %}
+        <tr><td class="text-muted">{{ fields[f][0] }}</td>
+            <td class="text-end">{% if extra is string %}{{ v|round(1) }} {{ extra }}{% else %}{{ extra[v|int] }}{% endif %}</td></tr>
+      {% endfor %}
+      </table>
+    </div>
+  </div>
+</div>
+<script>
+const shap = {{ shap|tojson }};
+new Chart(document.getElementById('shap'), {
+  type: 'bar',
+  data: { labels: shap.map(s => s[0]),
+          datasets: [{ data: shap.map(s => s[1]),
+                       backgroundColor: shap.map(s => s[1] >= 0 ? '#2e9e5b' : '#d64545'), borderRadius: 4 }] },
+  options: { indexAxis: 'y', plugins: { legend: { display: false } },
+             scales: { x: { title: { display: true, text: 'SHAP value (impact on prediction)' } } } }
+});
+</script>
+{% endblock %}

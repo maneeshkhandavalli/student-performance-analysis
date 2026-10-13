@@ -1,0 +1,55 @@
+{% extends "base.html" %}{% block content %}
+<div class="row justify-content-center">
+<div class="col-lg-9">
+  <h3 class="mb-1">Predict a student's performance</h3>
+  <p class="hero mb-4">Fill in the student's academic details. The model classifies them as
+    <span class="badge bg-success">Low-risk</span>, <span class="badge bg-warning text-dark">Medium-risk</span>
+    or <span class="badge bg-danger">At-risk</span> and explains why.</p>
+  {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+  <form method="post" action="/predict" class="card p-4" novalidate onsubmit="return checkForm(this)">
+    <div class="row g-3">
+      <div class="col-md-6"><label class="form-label">Student name</label>
+        <input class="form-control" name="name" placeholder="e.g. Maneesh Khandavalli" value="{{ form.get('name','') }}"></div>
+      <div class="col-md-6"><label class="form-label">Roll number</label>
+        <input class="form-control" name="roll" placeholder="e.g. 24CSE6056" value="{{ form.get('roll','') }}"></div>
+      {% for f, (label, lo, hi, extra) in fields.items() %}
+      <div class="col-md-6"><label class="form-label">{{ label }}</label>
+        {% if extra is string %}
+        <div class="input-group">
+          <input type="number" step="any" class="form-control" name="{{ f }}" min="{{ lo }}" max="{{ hi }}"
+                 placeholder="{{ lo }} – {{ hi }}" value="{{ form.get(f,'') }}" required>
+          <span class="input-group-text">{{ extra }}</span>
+        </div>
+        {% else %}
+        <select class="form-select" name="{{ f }}" required>
+          <option value="" disabled {% if not form.get(f) %}selected{% endif %}>Select…</option>
+          {% for opt in extra %}<option value="{{ loop.index0 }}" {% if form.get(f) == loop.index0|string %}selected{% endif %}>{{ opt }}</option>{% endfor %}
+        </select>
+        {% endif %}
+        <div class="invalid-feedback">Enter a value between {{ lo }} and {{ hi }}.</div>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="d-flex gap-2 mt-4">
+      <button class="btn btn-primary px-4" type="submit">Predict</button>
+      <button class="btn btn-outline-secondary" type="button" onclick="fillExample()">Fill example</button>
+    </div>
+  </form>
+</div></div>
+<script>
+function checkForm(f) {             // client-side validation
+  let ok = true;
+  f.querySelectorAll('[required]').forEach(el => {
+    const v = parseFloat(el.value), bad = el.value === '' ||
+      (el.min !== '' && (v < +el.min || v > +el.max));
+    el.classList.toggle('is-invalid', bad); if (bad) ok = false;
+  });
+  return ok;
+}
+function fillExample() {
+  const ex = {attendance: 72, study_hours: 8, ca_avg: 58, assignments_done: 65, midterm_marks: 52,
+              parental_education: 2, extracurricular: 0, internet_access: 1};
+  for (const k in ex) document.querySelector(`[name=${k}]`).value = ex[k];
+}
+</script>
+{% endblock %}
