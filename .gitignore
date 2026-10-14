@@ -32,3 +32,6 @@ env/
 .DS_Store
 Thumbs.db
 ~$*
+
+# ---- Local tooling output ----
+graphify-out/

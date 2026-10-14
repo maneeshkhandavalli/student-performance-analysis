@@ -107,7 +107,8 @@ are always shown on the app's **Dashboard**.
 ```
 python -m pytest -v
 ```
-28 tests cover input validation, the model, SHAP explanations, all pages, CSV upload, history
+43 tests cover input validation, the model, SHAP explanations, all pages, CSV upload (including bad files,
+Excel encodings and the results download), history
 filtering and basic security (SQL injection and HTML escaping).
 
 ## Project structure

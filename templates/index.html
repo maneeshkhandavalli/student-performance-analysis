@@ -7,6 +7,26 @@
     or <span class="badge bg-danger">At-risk</span> and explains why.</p>
   {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
   <form method="post" action="/predict" class="card p-4" novalidate onsubmit="return checkForm(this)">
+    <div class="mb-4 pb-3 border-bottom">
+      <label class="form-label" for="testCase">Load a test case</label>
+      <select class="form-select" id="testCase" onchange="loadTestCase(this.value)">
+        <option value="" selected>Choose a preset student profile…</option>
+        <optgroup label="Low-risk">
+          <option value="strong">Low-risk — strong student</option>
+          <option value="topper">Low-risk — topper, high marks</option>
+        </optgroup>
+        <optgroup label="Medium-risk">
+          <option value="average">Medium-risk — average student</option>
+          <option value="patchy">Medium-risk — good marks, patchy attendance</option>
+          <option value="pending">Medium-risk — assignments pending</option>
+        </optgroup>
+        <optgroup label="At-risk">
+          <option value="absent">At-risk — low attendance</option>
+          <option value="failing">At-risk — failing mid-term</option>
+          <option value="struggling">At-risk — struggling on every front</option>
+        </optgroup>
+      </select>
+    </div>
     <div class="row g-3">
       <div class="col-md-6"><label class="form-label">Student name</label>
         <input class="form-control" name="name" placeholder="e.g. Maneesh Khandavalli" value="{{ form.get('name','') }}"></div>
@@ -50,6 +70,34 @@ function fillExample() {
   const ex = {attendance: 72, study_hours: 8, ca_avg: 58, assignments_done: 65, midterm_marks: 52,
               parental_education: 2, extracurricular: 0, internet_access: 1};
   for (const k in ex) document.querySelector(`[name=${k}]`).value = ex[k];
+}
+// preset profiles - each one was checked against the trained model and gets the label in its name
+const TEST_CASES = {
+  strong:     {name: 'Test - Strong student', roll: 'TEST01', attendance: 94, study_hours: 22, ca_avg: 85,
+               assignments_done: 96, midterm_marks: 82, parental_education: 3, extracurricular: 1, internet_access: 1},
+  topper:     {name: 'Test - Topper', roll: 'TEST02', attendance: 98, study_hours: 30, ca_avg: 93,
+               assignments_done: 100, midterm_marks: 91, parental_education: 4, extracurricular: 1, internet_access: 1},
+  average:    {name: 'Test - Average student', roll: 'TEST03', attendance: 76, study_hours: 12, ca_avg: 64,
+               assignments_done: 75, midterm_marks: 58, parental_education: 2, extracurricular: 0, internet_access: 1},
+  patchy:     {name: 'Test - Patchy attendance', roll: 'TEST04', attendance: 70, study_hours: 14, ca_avg: 70,
+               assignments_done: 78, midterm_marks: 65, parental_education: 3, extracurricular: 1, internet_access: 1},
+  pending:    {name: 'Test - Assignments pending', roll: 'TEST05', attendance: 82, study_hours: 11, ca_avg: 62,
+               assignments_done: 55, midterm_marks: 56, parental_education: 2, extracurricular: 0, internet_access: 1},
+  absent:     {name: 'Test - Low attendance', roll: 'TEST06', attendance: 48, study_hours: 7, ca_avg: 50,
+               assignments_done: 55, midterm_marks: 42, parental_education: 1, extracurricular: 0, internet_access: 1},
+  failing:    {name: 'Test - Failing mid-term', roll: 'TEST07', attendance: 72, study_hours: 5, ca_avg: 42,
+               assignments_done: 50, midterm_marks: 28, parental_education: 1, extracurricular: 0, internet_access: 0},
+  struggling: {name: 'Test - Struggling student', roll: 'TEST08', attendance: 35, study_hours: 2, ca_avg: 30,
+               assignments_done: 25, midterm_marks: 20, parental_education: 0, extracurricular: 0, internet_access: 0},
+};
+function loadTestCase(key) {
+  const tc = TEST_CASES[key];
+  if (!tc) return;
+  for (const k in tc) {
+    const el = document.querySelector(`[name=${k}]`);
+    el.value = tc[k];
+    el.classList.remove('is-invalid');
+  }
 }
 </script>
 {% endblock %}

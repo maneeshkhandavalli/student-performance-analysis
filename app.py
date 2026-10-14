@@ -2,7 +2,7 @@
 
 Run:  python app.py   then open http://127.0.0.1:5000
 """
-import json, os, sqlite3
+import io, json, os, sqlite3
 from datetime import datetime
 
 import joblib
@@ -80,15 +80,60 @@ def suggestions(d):
 
 def parse(form):
     d = {}
-    for f, (label, lo, hi, _) in FIELDS.items():
-        try:
-            v = float(form.get(f, ""))
-        except ValueError:
+    for f, (label, lo, hi, extra) in FIELDS.items():
+        raw = str(form.get(f, "")).strip()
+        if not raw:
             raise ValueError(f"{label} is required")
+        try:
+            v = float(raw)
+        except ValueError:
+            raise ValueError(f"{label} must be a number")
         if not lo <= v <= hi:
             raise ValueError(f"{label} must be between {lo} and {hi}")
+        if not isinstance(extra, str) and v != int(v):
+            raise ValueError(f"{label} must be a whole number between {lo} and {hi}")
         d[f] = v
     return d
+
+
+def read_upload(file):
+    """Read an uploaded CSV, accepting both UTF-8 (with or without BOM) and Excel's Windows-1252 encoding."""
+    raw = file.read()
+    if raw.startswith(b"PK\x03\x04"):
+        raise ValueError("This looks like an Excel file - use File > Save As > CSV and upload that")
+    for enc in ("utf-8-sig", "cp1252"):
+        try:
+            return pd.read_csv(io.BytesIO(raw), encoding=enc)
+        except UnicodeDecodeError:
+            continue
+        except pd.errors.EmptyDataError:
+            raise ValueError("The CSV file is empty")
+        except pd.errors.ParserError:
+            break
+    raise ValueError("Could not read the file - please upload a .csv file")
+
+
+def check_batch(df):
+    """Apply the same rules as the single-student form to every CSV row (blanks are allowed)."""
+    empty = df.index[df[FEATURES].isna().all(axis=1)]
+    if len(empty):
+        raise ValueError(f"Row {empty[0] + 1}: none of the {len(FEATURES)} feature columns are filled in")
+    for f, (label, lo, hi, extra) in FIELDS.items():
+        col = pd.to_numeric(df[f], errors="coerce")
+        bad = df.index[col.isna() & df[f].notna()]
+        if len(bad):
+            raise ValueError(f"Row {bad[0] + 1}: {label} must be a number (got '{df[f][bad[0]]}')")
+        if col.isna().all():
+            raise ValueError(f"The {label} column is empty - fill in at least one value")
+        out = df.index[(col < lo) | (col > hi)]
+        if len(out):
+            raise ValueError(f"Row {out[0] + 1}: {label} must be between {lo} and {hi} (got {col[out[0]]:g})")
+        if not isinstance(extra, str):
+            frac = df.index[col % 1 > 0]
+            if len(frac):
+                raise ValueError(f"Row {frac[0] + 1}: {label} must be a whole number between {lo} and {hi} "
+                                 f"(got {col[frac[0]]:g})")
+        df[f] = col
 
 
 @app.route("/")
@@ -121,28 +166,40 @@ def predict():
 
 @app.route("/batch", methods=["GET", "POST"])
 def batch():
-    rows, error, summary = None, None, None
+    rows, error, summary, csv = None, None, None, None
     if request.method == "POST":
         try:
-            df = pd.read_csv(request.files["file"])
+            file = request.files.get("file")
+            if not file or not file.filename:
+                raise ValueError("Please choose a CSV file to upload")
+            df = read_upload(file)
+            df.columns = [c.strip().lower() if c.strip().lower() in FEATURES else c.strip() for c in df.columns]
+            df = df.dropna(how="all")                                    # rows left blank in Excel (",,,,")
             missing = [f for f in FEATURES if f not in df.columns]
             if missing:
                 raise ValueError("CSV is missing columns: " + ", ".join(missing))
+            if df.empty:
+                raise ValueError("The CSV file has no student rows")
+            out = df.copy()                                              # results CSV keeps the uploaded values
+            check_batch(df)
             df[FEATURES] = df[FEATURES].fillna(df[FEATURES].median())     # median imputation
             probs = model.predict_proba(df[FEATURES])
-            df["prediction"] = [CLASSES[i] for i in probs.argmax(axis=1)]
+            out["predicted_risk"] = df["predicted_risk"] = [CLASSES[i] for i in probs.argmax(axis=1)]
             df["confidence"] = (probs.max(axis=1) * 100).round(1)
             rows = df.to_dict("records")
-            summary = df["prediction"].value_counts().to_dict()
-            app.config["LAST_BATCH"] = df.to_csv(index=False)
+            summary = df["predicted_risk"].value_counts().to_dict()
+            csv = out.to_csv(index=False)
         except Exception as e:
             error = str(e)
-    return render_template("batch.html", rows=rows, error=error, summary=summary, features=FEATURES)
+    return render_template("batch.html", rows=rows, error=error, summary=summary, features=FEATURES, csv=csv)
 
 
-@app.route("/batch/download")
+@app.route("/batch/download", methods=["GET", "POST"])
 def batch_download():
-    return Response(app.config.get("LAST_BATCH", ""), mimetype="text/csv",
+    """Send back the results CSV that the batch page embedded in its download form."""
+    if request.method == "GET":                     # old bookmark / refresh: there is nothing to download
+        return redirect(url_for("batch"))
+    return Response(request.form.get("csv", ""), mimetype="text/csv",
                     headers={"Content-Disposition": "attachment; filename=predictions.csv"})
 
 

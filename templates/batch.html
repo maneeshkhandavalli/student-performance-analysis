@@ -1,7 +1,8 @@
 {% extends "base.html" %}{% block content %}
 <h3 class="mb-1">Batch prediction</h3>
 <p class="hero">Upload a CSV with one row per student. Required columns:
-  <code>{{ features|join(', ') }}</code>. Missing values are filled with the column median.</p>
+  <code>{{ features|join(', ') }}</code>. Missing values are filled with the column median.
+  The results CSV is your file with an extra <code>predicted_risk</code> column.</p>
 {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
 <form method="post" enctype="multipart/form-data" class="card p-4 mb-4">
   <div class="row g-2 align-items-center">
@@ -16,14 +17,17 @@
 <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
   <span class="fw-semibold me-2">{{ rows|length }} students:</span>
   {% for c, n in summary.items() %}<span class="badge bg-{{ BADGE[c] }} {% if c == 'Medium-risk' %}text-dark{% endif %} fs-6">{{ c }}: {{ n }}</span>{% endfor %}
-  <a class="btn btn-sm btn-success ms-auto" href="/batch/download">Download results CSV</a>
+  <form method="post" action="/batch/download" class="ms-auto">
+    <input type="hidden" name="csv" value="{{ csv }}">
+    <button class="btn btn-sm btn-success" type="submit">Download results CSV</button>
+  </form>
 </div>
 <div class="card p-0"><div class="table-responsive">
 <table class="table table-sm table-hover mb-0">
-  <tr>{% if 'student_id' in rows[0] %}<th>ID</th>{% endif %}{% for f in features %}<th>{{ SHORT[f] }}</th>{% endfor %}<th>Prediction</th><th>Conf.</th></tr>
+  <tr>{% if 'student_id' in rows[0] %}<th>ID</th>{% endif %}{% for f in features %}<th>{{ SHORT[f] }}</th>{% endfor %}<th>Predicted risk</th><th>Conf.</th></tr>
   {% for r in rows %}
   <tr>{% if 'student_id' in r %}<td>{{ r.student_id }}</td>{% endif %}{% for f in features %}<td>{{ r[f] }}</td>{% endfor %}
-    <td><span class="badge bg-{{ BADGE[r.prediction] }} {% if r.prediction == 'Medium-risk' %}text-dark{% endif %}">{{ r.prediction }}</span></td>
+    <td><span class="badge bg-{{ BADGE[r.predicted_risk] }} {% if r.predicted_risk == 'Medium-risk' %}text-dark{% endif %}">{{ r.predicted_risk }}</span></td>
     <td>{{ r.confidence }}%</td></tr>
   {% endfor %}
 </table></div></div>
