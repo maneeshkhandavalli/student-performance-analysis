@@ -14,7 +14,7 @@ from train_model import FEATURES, train
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 os.chdir(BASE)
-DB = "history.db"
+DB = "/tmp/history.db" if os.environ.get("VERCEL") else "history.db"   # Vercel: only /tmp is writable
 MODEL_VERSION = 2
 
 def load_bundle():

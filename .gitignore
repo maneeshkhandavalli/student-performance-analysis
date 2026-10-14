@@ -12,8 +12,7 @@ config.local.*
 instance/
 
 # ---- Generated when the app runs (re-created automatically) ----
-model.pkl
-metrics.json
+# model.pkl and metrics.json ARE committed: Vercel's filesystem is read-only, so it cannot train at startup
 history.db
 predictions.db
 *.db

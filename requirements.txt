@@ -1,8 +1,13 @@
-flask
-pandas
-numpy
-scikit-learn
-imbalanced-learn
-xgboost
-joblib
+# Versions are pinned so the committed model.pkl unpickles identically everywhere.
+flask==3.1.3
+pandas==3.0.6
+numpy==2.5.4
+scipy==1.18.1
+scikit-learn==1.9.1
+imbalanced-learn==0.14.2
+joblib==1.6.0
+# On Linux the full xgboost wheel pulls in ~400 MB of NVIDIA GPU libraries;
+# xgboost-cpu is the same `xgboost` module without them (keeps Vercel under its 500 MB limit).
+xgboost-cpu==3.4.1; sys_platform == "linux"
+xgboost==3.4.1; sys_platform != "linux"
 pytest
